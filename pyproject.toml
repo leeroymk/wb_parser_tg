@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "wb-parser-tg"
+version = "0.1.0"
+description = ""
+authors = ["leeroymk <demonic90@mail.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[tool.poetry.group.types.dependencies]
+mypy = "^1.11.2"
+
+
+[tool.poetry.group.lint.dependencies]
+flake8 = "^7.1.1"
+ruff = "^0.6.2"
+pre-commit = "^3.8.0"
+
+
+[tool.poetry.group.parser.dependencies]
+httpx = "^0.27.2"
+fake-useragent = "^1.5.1"
+
+
+[tool.poetry.group.bot.dependencies]
+python-dotenv = "^1.0.1"
+aiogram = "^3.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
