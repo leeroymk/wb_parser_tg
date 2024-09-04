@@ -13,7 +13,7 @@ def parse_id(url: str) -> str:
     parsed_url = urlparse(url)
     path_url = parsed_url.path
     id = path_url.split("/")[2]
-    template = "https://card.wb.ru/cards/v2/detail?appType=1&curr=rub&dest=-1257786&spp=30&ab_testing=false&nm="  # noqa 501
+    template = "https://card.wb.ru/cards/v2/detail?curr=rub&dest=-1257786&nm="
     return template + id
 
 
@@ -35,7 +35,7 @@ async def get_product_data(url: str):
         except (httpx.RequestError, httpx.TimeoutException) as e:
             print(f"Ошибка запроса: {e}. Попытка {attempt + 1}")
             await asyncio.sleep(2 + random.uniform(1, 2))
-    raise Exception("Не удалось получить данные после 5 попыток")
+    raise Exception(f"Не удалось получить данные после {limit} попыток")
 
 
 # Функция для парсинга полученного словаря

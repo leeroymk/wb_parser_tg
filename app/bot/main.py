@@ -4,12 +4,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-import user_handlers
-from config import Config, load_config
+from app.bot import user_handlers
+from app.bot.config import Config, load_config
 
 
 async def main():
-    print("Starting bot")
+    print("Бот запускается...")
 
     # Загружаем конфиг в переменную config
     config: Config = load_config()
@@ -26,4 +26,5 @@ async def main():
     await dp.start_polling(bot)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
