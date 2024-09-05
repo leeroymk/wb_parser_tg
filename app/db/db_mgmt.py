@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import Dict, List
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 from bson import ObjectId
+from pymongo.errors import BulkWriteError
 
 
 client = MongoClient("mongodb://root:example@localhost:27017/")
@@ -21,14 +23,20 @@ def add_item(url: str) -> ObjectId:
     return result.inserted_id
 
 
-def add_user(user_id: int) -> ObjectId:
+def add_user(user_data: tuple[int, str, str]) -> ObjectId:
+    user_id, full_name, username = user_data
     existing_user = users_collection.find_one({"user_id": user_id})
 
     if existing_user:
         print(f"Пользователь с id {user_id} уже существует")
         return existing_user["_id"]
 
-    user = {"user_id": user_id, "tracked_item_ids": []}
+    user = {
+        "user_id": user_id,
+        "tracked_item_ids": [],
+        "full_name": full_name,
+        "username": username,
+    }
 
     result = users_collection.insert_one(user)
     print(f"Пользователь с id {user_id} успешно добавлен")
@@ -87,19 +95,52 @@ def format_tracked_items(items: List[Dict[str, any]]) -> str:
     response_message = "Список товаров для отслеживания:\n\n"
     for item in items:
         name = item.get("name", "Unnamed Product")
-        price = item.get("price", "Price not available")
+        price = item.get("current_price", "Price not available")
         url = item.get("url", "Wrong URL")
-        response_message += f"{name}: {price}\n{url}\n\n"
+        response_message += f"{name}: {price} руб.\n{url}\n\n"
 
     return response_message
 
 
 def find_item_by_url(url: str):
     item = items_collection.find_one({"url": url})
-    print(f"item {item}")
-    print(f"type {type(item)}")
     return item
 
 
 def remove_item_for_user(user_id: int, item_id: ObjectId) -> None:
     users_collection.update_one({"user_id": user_id}, {"$pull": {"tracked_item_ids": item_id}})
+
+
+def get_url_list(user_id: int) -> List[str]:
+    user = users_collection.find_one({"user_id": user_id})
+    tracked_items = items_collection.find({"_id": {"$in": user["tracked_item_ids"]}})
+    tracked_urls = [item["url"] for item in tracked_items]
+    return tracked_urls
+
+
+def update_product_data_in_db(product_data: dict[str, dict[str, str]]):
+    operations = []
+    for name, data in product_data.items():
+        url = data.get("url", "unknown_url")
+
+        operations.append(
+            UpdateOne(
+                {"url": url},
+                {
+                    "$set": {"current_price": int(data["price"]), "name": name, "url": url},
+                    "$push": {
+                        "price_history": {"price": int(data["price"]), "date": datetime.now()}
+                    },
+                },
+                upsert=True,
+            )
+        )
+
+    if operations:
+        try:
+            result = items_collection.bulk_write(operations)
+            print(f"Обновлено: {result.modified_count}. Вставлено новых: {result.upserted_count}.")
+        except BulkWriteError as bwe:
+            print(f"Ошибка массового обновления: {bwe.details}")
+    else:
+        print("Нет данных для обновления.")

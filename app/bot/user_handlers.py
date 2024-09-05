@@ -1,9 +1,9 @@
-from aiogram import Router
+from aiogram import Router, exceptions
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-from app.bot.services import check_valid_url
+from app.bot.services import check_valid_url, get_user_data
 from app.bot.state import Form
 from app.db.db_mgmt import (
     add_item,
@@ -13,8 +13,10 @@ from app.db.db_mgmt import (
     get_tracked_items_for_user,
     remove_item_for_user,
     track_item_for_user,
+    update_product_data_in_db,
 )
 from app.bot.lexicon import LEXICON_RU
+from app.parser import parser
 
 
 router = Router()
@@ -23,9 +25,9 @@ router = Router()
 # Обработка команды /start
 @router.message(CommandStart())
 async def process_start_command(message: Message):
-    tg_id = message.from_user.id
+    user_data = get_user_data(message)
     await message.answer(text=LEXICON_RU["/start"])
-    return add_user(tg_id)
+    return add_user(user_data)
 
 
 # Обработка команды /help
@@ -93,3 +95,19 @@ async def process_remove_url(message: Message, state: FSMContext):
 
     await state.clear()
     await message.answer(text=LEXICON_RU["item_removed"])
+
+
+# Обработка ручного запуска парсинга /price
+@router.message(Command(commands="price"))
+async def process_price_command(message: Message):
+    user_id = message.from_user.id
+    try:
+        if get_tracked_items_for_user(user_id):
+            await message.answer(text="Парсинг запущен...")
+            product_data = await parser.main(user_id)
+            update_product_data_in_db(product_data)
+            await message.answer(text="Парсинг завершен успешно! Данные обновлены.")
+        else:
+            await message.answer(text="Добавьте товары для отслеживания")
+    except exceptions.TelegramNetworkError:
+        await message.answer(text="Произошла ошибка сети. Пожалуйста, попробуйте еще раз позже.")
