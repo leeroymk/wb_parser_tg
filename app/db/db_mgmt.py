@@ -144,3 +144,7 @@ def update_product_data_in_db(product_data: dict[str, dict[str, str]]):
             print(f"Ошибка массового обновления: {bwe.details}")
     else:
         print("Нет данных для обновления.")
+
+
+def remove_all_tracked_items(user_id: int) -> None:
+    users_collection.update_one({"user_id": user_id}, {"$set": {"tracked_item_ids": []}})

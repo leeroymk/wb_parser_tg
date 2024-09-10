@@ -1,9 +1,9 @@
-from aiogram import Router, exceptions
+from aiogram import Router, exceptions, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-from app.bot.services import check_valid_url, get_user_data
+from app.bot.services import check_valid_url, get_user_data, get_url
 from app.bot.state import Form
 from app.db.db_mgmt import (
     add_item,
@@ -11,11 +11,12 @@ from app.db.db_mgmt import (
     find_item_by_url,
     format_tracked_items,
     get_tracked_items_for_user,
+    remove_all_tracked_items,
     remove_item_for_user,
     track_item_for_user,
     update_product_data_in_db,
 )
-from app.bot.lexicon import LEXICON_RU
+from app.bot.lexicon import LEXICON_COMMANDS, LEXICON_MESSAGES
 from app.parser import parser
 
 
@@ -26,14 +27,14 @@ router = Router()
 @router.message(CommandStart())
 async def process_start_command(message: Message):
     user_data = get_user_data(message)
-    await message.answer(text=LEXICON_RU["/start"])
+    await message.answer(text=LEXICON_COMMANDS["/start"])
     return add_user(user_data)
 
 
 # Обработка команды /help
 @router.message(Command(commands="help"))
 async def process_help_command(message: Message):
-    await message.answer(text=LEXICON_RU["/help"])
+    await message.answer(text=LEXICON_COMMANDS["/help"])
 
 
 # Обработка команды /list
@@ -49,15 +50,15 @@ async def process_list_command(message: Message):
 @router.message(Command(commands="add"))
 async def process_add_command(message: Message, state: FSMContext):
     await state.set_state(Form.waiting_for_add_url)
-    await message.answer(text=LEXICON_RU["state_add"])
+    await message.answer(text=LEXICON_MESSAGES["state_add"])
 
 
 # Обработка входящих сообщений команды /add
 @router.message(Form.waiting_for_add_url)
 async def process_add_url(message: Message, state: FSMContext):
-    url = message.text
+    url = get_url(message.text)
     if not check_valid_url(url):
-        await message.answer(text=LEXICON_RU["invalid_url"])
+        await message.answer(text=LEXICON_MESSAGES["invalid_url"])
         return
 
     item_id = add_item(url)
@@ -65,14 +66,14 @@ async def process_add_url(message: Message, state: FSMContext):
     track_item_for_user(user_id, item_id)
     await state.clear()
 
-    await message.answer(text=LEXICON_RU["valid_url"])
+    await message.answer(text=LEXICON_MESSAGES["valid_url"])
 
 
 # Обработка команды /remove
 @router.message(Command(commands="remove"))
 async def process_remove_command(message: Message, state: FSMContext):
     await state.set_state(Form.waiting_for_remove_url)
-    await message.answer(text=LEXICON_RU["state_remove"])
+    await message.answer(text=LEXICON_MESSAGES["state_remove"])
 
 
 # Обработка входящих сообщений для команды /remove
@@ -80,12 +81,12 @@ async def process_remove_command(message: Message, state: FSMContext):
 async def process_remove_url(message: Message, state: FSMContext):
     url = message.text
     if not check_valid_url(url):
-        await message.answer(text=LEXICON_RU["invalid_url"])
+        await message.answer(text=LEXICON_MESSAGES["invalid_url"])
         return
 
     item = find_item_by_url(url)
     if not item:
-        await message.answer(text=LEXICON_RU["item_not_found"])
+        await message.answer(text=LEXICON_MESSAGES["item_not_found"])
         return
 
     item_id = item["_id"]
@@ -94,7 +95,7 @@ async def process_remove_url(message: Message, state: FSMContext):
     remove_item_for_user(user_id, item_id)
 
     await state.clear()
-    await message.answer(text=LEXICON_RU["item_removed"])
+    await message.answer(text=LEXICON_MESSAGES["item_removed"])
 
 
 # Обработка ручного запуска парсинга /price
@@ -103,11 +104,40 @@ async def process_price_command(message: Message):
     user_id = message.from_user.id
     try:
         if get_tracked_items_for_user(user_id):
-            await message.answer(text="Парсинг запущен...")
+            await message.answer(text="Обновляем цены...")
             product_data = await parser.main(user_id)
             update_product_data_in_db(product_data)
-            await message.answer(text="Парсинг завершен успешно! Данные обновлены.")
+            await message.answer(text="Обновление успешно завершено! Посмотреть цены /list")
         else:
             await message.answer(text="Добавьте товары для отслеживания")
     except exceptions.TelegramNetworkError:
         await message.answer(text="Произошла ошибка сети. Пожалуйста, попробуйте еще раз позже.")
+
+
+# Хэндлер для команды /empty
+@router.message(Command(commands="empty"))
+async def process_empty_command(message: Message, state: FSMContext):
+    await state.set_state(Form.waiting_for_empty_confirmation)
+    await message.answer(text=LEXICON_MESSAGES["empty_confirm"])
+
+
+# Хэндлер для подтверждения удаления
+@router.message(Form.waiting_for_empty_confirmation, F.text.casefold() == "очистить")
+async def process_empty_confirmation(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    remove_all_tracked_items(user_id)
+    await state.clear()
+    await message.answer(text=LEXICON_MESSAGES["empty_success"])
+
+
+# Хэндлер для отмены удаления, если пользователь вводит что-то другое
+@router.message(Form.waiting_for_empty_confirmation)
+async def process_empty_cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(text=LEXICON_MESSAGES["empty_cancel"])
+
+
+# Хэндлер для сообщений, которые не попали в другие хэндлеры
+@router.message()
+async def send_answer(message: Message):
+    await message.answer(text=LEXICON_MESSAGES["other_answer"])

@@ -36,7 +36,10 @@ def parse(response_dict, size: str | None) -> tuple[str, int]:
 
         for i, size_data in enumerate(sizes):
             if size is None or option_id == size:
-                raw_price = size_data["price"]["total"]
+                try:
+                    raw_price = size_data["price"]["total"]
+                except KeyError:
+                    raw_price = 0
                 break
 
     price = int(raw_price / 100)

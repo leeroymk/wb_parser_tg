@@ -9,7 +9,7 @@ from app.bot.config import Config, load_config
 
 
 async def main():
-    print("Бот запущен...")
+    print("Бот запущен!")
 
     config: Config = load_config()
 
