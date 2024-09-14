@@ -7,7 +7,7 @@ load_dotenv()
 
 @dataclass
 class TgBot:
-    token: str
+    token: str | None
 
 
 @dataclass

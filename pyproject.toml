@@ -28,6 +28,10 @@ fake-useragent = "^1.5.1"
 python-dotenv = "^1.0.1"
 aiogram = "^3.12.0"
 
+
+[tool.poetry.group.db.dependencies]
+pymongo = "^4.8.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
