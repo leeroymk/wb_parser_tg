@@ -104,14 +104,14 @@ async def process_price_command(message: Message):
     user_id = message.from_user.id
     try:
         if get_tracked_items_for_user(user_id):
-            await message.answer(text="Обновляем цены...")
+            await message.answer(text=LEXICON_MESSAGES["price_start"])
             product_data = await parser.main(user_id)
             update_product_data_in_db(product_data)
-            await message.answer(text="Обновление успешно завершено! Посмотреть цены /list")
+            await message.answer(text=LEXICON_MESSAGES["price_success"])
         else:
-            await message.answer(text="Добавьте товары для отслеживания")
+            await message.answer(text=LEXICON_MESSAGES["price_add"])
     except exceptions.TelegramNetworkError:
-        await message.answer(text="Произошла ошибка сети. Пожалуйста, попробуйте еще раз позже.")
+        await message.answer(text=LEXICON_MESSAGES["price_error"])
 
 
 # Хэндлер для команды /empty

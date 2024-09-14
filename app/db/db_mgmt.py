@@ -118,7 +118,7 @@ def get_url_list(user_id: int) -> List[str]:
     return tracked_urls
 
 
-def update_product_data_in_db(product_data: dict[str, dict[str, str]]):
+def update_product_data_in_db(product_data: dict[str, dict[str, str]]) -> None:
     operations = []
     for name, data in product_data.items():
         url = data.get("url", "unknown_url")
